@@ -1,0 +1,9 @@
+[2017-12-18 22:01:43,585] I Max date config 2017-07-06 00:00:00, nginx log filename: nginx-access-ui.log-20170706.gz
+[2017-12-18 22:01:54,131] I Max date config 2017-07-06 00:00:00, nginx log filename: nginx-access-ui.log-20170706.gz
+[2017-12-18 22:02:55,422] I Len of list parsed urls: 2564763
+[2017-12-18 22:02:57,677] I dicts len: 237088
+[2017-12-18 22:02:57,730] I all count urls: 2564763
+[2017-12-18 22:02:57,962] I all_time_req: 1007769.054
+[2017-12-18 22:03:00,501] I statistic time: 1.1061597983
+[2017-12-18 22:03:02,336] I mtime of ts-file: 1513623782.33
+[2017-12-18 22:04:37,743] I Max date config 2017-07-06 00:00:00, nginx log filename: nginx-access-ui.log-20170706.gz
