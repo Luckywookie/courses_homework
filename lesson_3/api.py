@@ -53,10 +53,10 @@ class BaseField(object):
 
     def __set__(self, instance, value):
         print('set', self, instance, value)
-        if instance and type(value) is self._type:
-            self.name = value
+        if instance and isinstance(value, self._type):
+            setattr(instance, self.name, value)
         else:
-            raise AttributeError('Cannot set this value')
+            raise AttributeError('Wrong type of value!')
 
     def __delete__(self, instance):
         raise AttributeError("Can't delete attribute")
