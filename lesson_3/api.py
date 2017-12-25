@@ -54,7 +54,8 @@ class BaseField(object):
     def __set__(self, instance, value):
         print('set', self, instance, value)
         if instance and isinstance(value, self._type):
-            setattr(instance, self.name, value)
+            # setattr(instance, self.name, value)
+            self.name = value
         else:
             raise AttributeError('Wrong type of value!')
 
@@ -100,41 +101,56 @@ class ArgumentsField(BaseField):
 
 
 class EmailField(CharField):
+    def __init__(self, required=False, nullable=False):
+        BaseField.__init__(self, required=False, nullable=False)
+
+    def __set__(self, instance, value):
+        if '@' in value:
+            BaseField.__set__(self, instance, value)
+        else:
+            raise AttributeError('This field must contain @!')
+
+
+class PhoneField(BaseField):
     pass
 
 
-class PhoneField(Field):
+class DateField(BaseField):
     pass
 
 
-class DateField(Field):
+class BirthDayField(BaseField):
     pass
 
 
-class BirthDayField(Field):
+class GenderField(BaseField):
     pass
 
 
-class GenderField(Field):
-    pass
-
-
-class ClientIDsField(Field):
+class ClientIDsField(BaseField):
     pass
 
 
 # class ClientsInterestsRequest(object):
 #     client_ids = ClientIDsField(required=True)
 #     date = DateField(required=False, nullable=True)
-#
-#
-# class OnlineScoreRequest(object):
-#     first_name = CharField(required=False, nullable=True)
-#     last_name = CharField(required=False, nullable=True)
-#     email = EmailField(required=False, nullable=True)
-#     phone = PhoneField(required=False, nullable=True)
-#     birthday = BirthDayField(required=False, nullable=True)
-#     gender = GenderField(required=False, nullable=True)
+
+
+class OnlineScoreRequest(object):
+    first_name = CharField(required=False, nullable=True)
+    last_name = CharField(required=False, nullable=True)
+    email = EmailField(required=False, nullable=True)
+    phone = PhoneField(required=False, nullable=True)
+    birthday = BirthDayField(required=False, nullable=True)
+    gender = GenderField(required=False, nullable=True)
+
+    def __init__(self, first_name, last_name, email, phone, birthday, gender):
+        self.first_name = first_name
+        self.last_name = last_name
+        self.email = email
+        self.phone = phone
+        self.birthday = birthday
+        self.gender = gender
 
 
 class MethodRequest(object):
@@ -185,9 +201,6 @@ class MainHTTPHandler(BaseHTTPRequestHandler):
         print(self.headers)
 
     def do_POST(self):
-        # print(MethodRequest.account)
-        niq_req = MethodRequest('admin22', 'admin', '', {}, 'get_score')
-        print(niq_req.account)
         response, code = {}, OK
         context = {"request_id": self.get_request_id(self.headers)}
         request = None
@@ -224,6 +237,11 @@ class MainHTTPHandler(BaseHTTPRequestHandler):
         return
 
 if __name__ == "__main__":
+
+    new_req = OnlineScoreRequest('olga', 'bel', 'fff@ddd', '445', '12/12/12', 'f')
+    print(new_req.email)
+    niq_req = MethodRequest('admin22', 'admin', '', {}, 'get_score')
+
     op = OptionParser()
     op.add_option("-p", "--port", action="store", type=int, default=8080)
     op.add_option("-l", "--log", action="store", default=None)
