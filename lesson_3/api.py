@@ -9,7 +9,7 @@ import hashlib
 import uuid
 from optparse import OptionParser
 from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
-from scoring import get_score
+from scoring import get_score, get_interests
 
 SALT = "Otus"
 ADMIN_LOGIN = "admin"
@@ -63,35 +63,10 @@ class BaseField(object):
         raise AttributeError("Can't delete attribute")
 
 
-class Field(object):
-    def __init__(self, name, required=False, nullable=False):
-        # self.name = self.__dict__['name']
-        self.name = "_" + name
-        self.required = required
-        self.nullable = nullable
-        self._type = str
-
-    def __get__(self, instance, cls):
-        print('get', self, instance, cls)
-        print(instance.__dict__)
-        print(instance.__dict__[self.name])
-        return getattr(instance, self.name)
-
-    def __set__(self, instance, value):
-        print('set', self, instance, value)
-        if type(value) is self._type:
-            setattr(instance, self.name, value)
-        else:
-            raise AttributeError('This field must be string')
-
-    def __delete__(self, instance):
-        raise AttributeError("Can't delete attribute")
-
-
 class CharField(BaseField):
     def __init__(self, required=False, nullable=False):
         super(BaseField, self).__init__()
-        self._type = str
+        self._type = (str, unicode)
 
 
 class ArgumentsField(BaseField):
@@ -102,7 +77,8 @@ class ArgumentsField(BaseField):
 
 class EmailField(CharField):
     def __init__(self, required=False, nullable=False):
-        BaseField.__init__(self, required=False, nullable=False)
+        BaseField.__init__(self, required, nullable)
+        self._type = (str, unicode)
 
     def __set__(self, instance, value):
         if '@' in value:
@@ -111,29 +87,33 @@ class EmailField(CharField):
             raise AttributeError('This field must contain @!')
 
 
-class PhoneField(BaseField):
+class PhoneField(CharField):
     pass
 
 
-class DateField(BaseField):
+class DateField(CharField):
     pass
 
 
-class BirthDayField(BaseField):
+class BirthDayField(CharField):
     pass
 
 
 class GenderField(BaseField):
-    pass
+    def __init__(self, required=False, nullable=False):
+        BaseField.__init__(self, required, nullable)
+        self._type = int
 
 
 class ClientIDsField(BaseField):
-    pass
+    def __init__(self, required=False, nullable=False):
+        BaseField.__init__(self, required, nullable)
+        self._type = int
 
 
-# class ClientsInterestsRequest(object):
-#     client_ids = ClientIDsField(required=True)
-#     date = DateField(required=False, nullable=True)
+class ClientsInterestsRequest(object):
+    client_ids = ClientIDsField(required=True)
+    date = DateField(required=False, nullable=True)
 
 
 class OnlineScoreRequest(object):
@@ -151,6 +131,13 @@ class OnlineScoreRequest(object):
         self.phone = phone
         self.birthday = birthday
         self.gender = gender
+
+    def view_dict(self):
+        print('view', self.__dict__.items(), dir(self), self.__getattribute__('email'))
+
+    def print_instance_attributes(self):
+        for attribute, value in self.__dict__.items():
+            print(attribute, '=', value)
 
 
 class MethodRequest(object):
@@ -177,6 +164,7 @@ def check_auth(request):
         digest = hashlib.sha512(datetime.datetime.now().strftime("%Y%m%d%H") + ADMIN_SALT).hexdigest()
     else:
         digest = hashlib.sha512(request.account + request.login + SALT).hexdigest()
+    # print(digest)
     if digest == request.token:
         return True
     return False
@@ -184,13 +172,34 @@ def check_auth(request):
 
 def method_handler(request, ctx, store):
     response, code = None, None
+    request = request['body']
+    if request.method == 'online_score' and request.login != 'admin':
+        data = request.arguments
+        try:
+            obj = OnlineScoreRequest(phone=data.phone,
+                                     email=data.email,
+                                     birthday=data.birthday,
+                                     gender=data.gender,
+                                     first_name=data.first_name,
+                                     last_name=data.last_name)
+            response = get_score(store, obj.phone, obj.email, obj.birthday, obj.gender, obj.first_name, obj.last_name)
+            code = OK
+        except Exception as ex:
+            response = str(ex)
+            code = BAD_REQUEST
+    elif request.method == 'online_score':
+        response = {"score": 42}
+        code = OK
+    elif request.method == 'clients_interests':
+        response = get_interests(store, None)
+        code = OK
+
     return response, code
 
 
 class MainHTTPHandler(BaseHTTPRequestHandler):
     router = {
-        "method": method_handler,
-        "get_score": (get_score(5, 'phone', 'email'), 'ok')
+        "method": method_handler
     }
     store = None
 
@@ -205,22 +214,25 @@ class MainHTTPHandler(BaseHTTPRequestHandler):
         context = {"request_id": self.get_request_id(self.headers)}
         request = None
         try:
+            from collections import namedtuple
             data_string = self.rfile.read(int(self.headers['Content-Length']))
-            request = json.loads(data_string)
+            request = json.loads(data_string, object_hook=lambda d: namedtuple('X', d.keys())(*d.values()))
         except:
             code = BAD_REQUEST
-
+        print(request)
         if request:
             path = self.path.strip("/")
-            print(path)
             logging.info("%s: %s %s" % (self.path, data_string, context["request_id"]))
             if path in self.router:
-                try:
-                    print({"body": request, "headers": self.headers}, context, self.store)
-                    response, code = self.router[path]({"body": request, "headers": self.headers}, context, self.store)
-                except Exception, e:
-                    logging.exception("Unexpected error: %s" % e)
-                    code = INTERNAL_ERROR
+                if check_auth(request):
+                    try:
+                        print(context, self.store)
+                        response, code = self.router[path]({"body": request, "headers": self.headers}, context, self.store)
+                    except Exception, e:
+                        logging.exception("Unexpected error: %s" % e)
+                        code = INTERNAL_ERROR
+                else:
+                    code = FORBIDDEN
             else:
                 code = NOT_FOUND
 
@@ -238,12 +250,14 @@ class MainHTTPHandler(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
 
-    new_req = OnlineScoreRequest('olga', 'bel', 'fff@ddd', '445', '12/12/12', 'f')
-    print(new_req.email)
-    niq_req = MethodRequest('admin22', 'admin', '', {}, 'get_score')
+    # new_req = OnlineScoreRequest('olga', 'bel', 'fff@ddd', '445', '12/12/12', 'f')
+    # print(new_req.email)
+    # new_req.view_dict()
+    # new_req.print_instance_attributes()
+    # niq_req = MethodRequest('admin22', 'admin', '', {}, 'get_score')
 
     op = OptionParser()
-    op.add_option("-p", "--port", action="store", type=int, default=8080)
+    op.add_option("-p", "--port", action="store", type=int, default=7080)
     op.add_option("-l", "--log", action="store", default=None)
     (opts, args) = op.parse_args()
     logging.basicConfig(filename=opts.log, level=logging.INFO,
