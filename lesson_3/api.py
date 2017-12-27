@@ -38,7 +38,7 @@ GENDERS = {
 
 
 class BaseField(object):
-    def __init__(self, required=False, nullable=False):
+    def __init__(self, required, nullable):
         self.name = None
         self.required = required
         self.nullable = nullable
@@ -55,6 +55,8 @@ class BaseField(object):
         print('set', self, instance, value)
         if instance and isinstance(value, self._type):
             # setattr(instance, self.name, value)
+            if not self.nullable and not value:
+                raise AttributeError('This value must be not null!')
             self.name = value
         else:
             raise AttributeError('Wrong type of value!')
@@ -64,14 +66,15 @@ class BaseField(object):
 
 
 class CharField(BaseField):
-    def __init__(self, required=False, nullable=False):
-        super(BaseField, self).__init__()
+    def __init__(self, required, nullable):
+        BaseField.__init__(self, required, nullable)
         self._type = (str, unicode)
 
 
 class ArgumentsField(BaseField):
-    def __init__(self, required=False, nullable=False):
-        super(BaseField, self).__init__()
+    def __init__(self, required, nullable):
+        # super(BaseField, self).__init__()
+        BaseField.__init__(self, required, nullable)
         self._type = dict
 
 
@@ -140,12 +143,25 @@ class OnlineScoreRequest(object):
             print(attribute, '=', value)
 
 
+
+class Controller(object):
+    def __new__(cls, *args, **kwargs):
+        if not hasattr(cls, 'path'):
+            raise NotImplementedError("'Controller' subclasses should have a 'path' attribute")
+        return Controller.__new__(cls, *args, **kwargs)
+
+
 class MethodRequest(object):
     account = CharField(required=False, nullable=True)
     login = CharField(required=True, nullable=True)
     token = CharField(required=True, nullable=True)
     arguments = ArgumentsField(required=True, nullable=True)
     method = CharField(required=True, nullable=False)
+
+    @classmethod
+    def cls_attr(cls):
+        print([i.required for i in cls.__dict__.values() if isinstance(i, (CharField, ArgumentsField))])
+        return dir(cls)
 
     def __init__(self, account, login, token, arguments, method):
         self.account = account
@@ -254,7 +270,8 @@ if __name__ == "__main__":
     # print(new_req.email)
     # new_req.view_dict()
     # new_req.print_instance_attributes()
-    # niq_req = MethodRequest('admin22', 'admin', '', {}, 'get_score')
+    print(MethodRequest.cls_attr())
+    niq_req = MethodRequest('admin22', 'admin', '', {}, '')
 
     op = OptionParser()
     op.add_option("-p", "--port", action="store", type=int, default=7080)
