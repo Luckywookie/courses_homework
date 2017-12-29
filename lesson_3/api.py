@@ -45,14 +45,14 @@ class BaseField(object):
         self._type = str
 
     def __get__(self, instance, cls):
-        print('get', self, instance, cls)
+        # print('get', self, instance, cls)
         if instance:
             return self.name
         else:
             return self
 
     def __set__(self, instance, value):
-        print('set', self, instance, value)
+        # print('set', self, instance, value)
         if instance and isinstance(value, self._type):
             # setattr(instance, self.name, value)
             if not self.nullable and not value:
@@ -151,17 +151,42 @@ class Controller(object):
         return Controller.__new__(cls, *args, **kwargs)
 
 
+class MyMeta(type):
+    ff = None
+    def __call__(meta, name, bases, dct):
+        newclass = super(MyMeta, meta).__new__(meta, name, bases, {})
+        for key, value in dct.items():
+            if not hasattr(meta, key) and key != '__metaclass__':
+                try:
+                    if value.required:
+                        setattr(newclass, key, value)
+                except:
+                    pass
+        from pprint import pprint
+        pprint(newclass.__dict__)
+        return newclass
+
+    def __init__(cls, name, bases, dct):
+        # print cls
+        # print dct
+        for key, value in dct.items():
+            if not hasattr(cls, key) and key not in ['__metaclass__', 'is_admin']:
+                try:
+                    if value.required:
+                        setattr(cls, key, value)
+                except:
+                    pass
+        super(MyMeta, cls).__init__(name, bases, dct)
+
+
 class MethodRequest(object):
+    __metaclass__ = MyMeta
+
     account = CharField(required=False, nullable=True)
     login = CharField(required=True, nullable=True)
     token = CharField(required=True, nullable=True)
     arguments = ArgumentsField(required=True, nullable=True)
     method = CharField(required=True, nullable=False)
-
-    @classmethod
-    def cls_attr(cls):
-        print([i.required for i in cls.__dict__.values() if isinstance(i, (CharField, ArgumentsField))])
-        return dir(cls)
 
     def __init__(self, account, login, token, arguments, method):
         self.account = account
@@ -265,13 +290,12 @@ class MainHTTPHandler(BaseHTTPRequestHandler):
         return
 
 if __name__ == "__main__":
-
     # new_req = OnlineScoreRequest('olga', 'bel', 'fff@ddd', '445', '12/12/12', 'f')
     # print(new_req.email)
     # new_req.view_dict()
     # new_req.print_instance_attributes()
-    print(MethodRequest.cls_attr())
-    niq_req = MethodRequest('admin22', 'admin', '', {}, '')
+    # print(MethodRequest.cls_attr())
+    niq_req = MethodRequest('admin22', 'admin', '', {}, 'ff')
 
     op = OptionParser()
     op.add_option("-p", "--port", action="store", type=int, default=7080)

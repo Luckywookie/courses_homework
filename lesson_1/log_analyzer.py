@@ -20,11 +20,6 @@ config = {
     "TS_PATH": "log_nalyzer.ts"
 }
 
-# logger = logging.getLogger('Log Analyzer')
-# logger.setLevel(logging.INFO)
-
-# formatter = logging.Formatter('[%(asctime)s] %(levelname).1s %(message)s')
-
 
 def median(numbers):
     return (sorted(numbers)[int(round((len(numbers) - 1) / 2.0))] + sorted(numbers)[int(round((len(numbers) - 1) // 2.0))]) / 2.0
@@ -39,7 +34,6 @@ def read_config(path_to_config=None):
         log_dir = data.get('LOG_DIR', None)
         ts_path = data.get('TS_PATH', None)
         logger_path_conf = data.get('LOGGER_PATH', None)
-        # return size_report, report_dir, log_dir, ts_path, logger_path_conf
         result_config = {
             "REPORT_SIZE": size_report if size_report else config['REPORT_SIZE'],
             "REPORT_DIR": report_dir if report_dir else config['REPORT_DIR'],
@@ -55,7 +49,6 @@ def read_config(path_to_config=None):
 def find_last_log(path_logs):
     pattern_log_name = re.compile(r"nginx-access-ui\.log-(?P<log_date>\d{8})(?P<type_file>.*)")
     date_list = []
-    filename_log = ''
     try:
         for file_item in os.listdir(path_logs):
             find_files = pattern_log_name.search(file_item)
@@ -63,11 +56,13 @@ def find_last_log(path_logs):
                 datadict = find_files.groupdict()
                 log_date = datadict["log_date"]
                 type_file = datadict["type_file"]
-                this_date = datetime.strptime(log_date, '%Y%m%d')
-                filename_log = 'nginx-access-ui.log-{}{}'.format(log_date, type_file)
-                date_list.append(this_date)
-                logging.info(msg='Max date config {}, nginx log filename: {}'.format(max(date_list), filename_log))
-        return max(date_list), filename_log
+                if type_file in ['', '.gz']:
+                    this_date = datetime.strptime(log_date, '%Y%m%d')
+                    filename_log = 'nginx-access-ui.log-{}{}'.format(log_date, type_file)
+                    date_list.append((this_date, filename_log))
+        max_log = max(date_list, key=lambda x: x[0])
+        logging.info(msg='Max date config {}, nginx log filename: {}'.format(max_log[0], max_log[1]))
+        return max_log[0], max_log[1]
     except OSError as ex:
         logging.exception(str(ex))
 
@@ -80,13 +75,24 @@ def parse_logs(log_file):
     pattern_log = re.compile(
         '(?:.+) \[(?:.+)\] "(?:.+) (?P<url>.+) HTTP/\d.\d".+(?P<time_req>\d+\.\d+)')
     lines = []
+    count_success = 0
+    all_count = 0
     for line in log_file:
+        all_count += 1
         findes = pattern_log.search(line)
         if findes:
-            datadict = findes.groupdict()
-            url = datadict["url"]
-            time_req = datadict["time_req"]
-            lines.append((url, float(time_req)))
+            try:
+                datadict = findes.groupdict()
+                url = datadict["url"]
+                time_req = datadict["time_req"]
+                lines.append((url, float(time_req)))
+                count_success += 1
+            except Exception as ex:
+                logging.exception('Cannot parse this line {} with error: {}'.format(line, ex))
+    # print float(count_success) / all_count
+    if float(count_success) / all_count < 0.66:
+        logging.exception('Less 66% success parsed lines')
+        raise Exception('Less 66% success parsed lines')
     logging.info(msg='Len of list parsed urls: {}'.format(len(lines)))
     return lines
 
@@ -164,16 +170,16 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='For custom config')
     parser.add_argument('--config', type=str, help='path to custom config file')
     args = parser.parse_args()
-    # print(args.config)
     dict_of_conf = read_config(args.config)
 
     logging.basicConfig(
-        # filename=local_path_error,
         filename=dict_of_conf.get('LOGGER_PATH', None),
         format='[%(asctime)s] %(levelname).1s %(message)s',
         datefmt='%H:%M:%S %d-%b-%Y',
-        level=logging.DEBUG,
-        # handlers=[queue_handler]
+        level=logging.DEBUG
     )
 
-    main(dict_of_conf)
+    try:
+        main(dict_of_conf)
+    except Exception as ex:
+        logging.exception(str(ex))
