@@ -25,7 +25,7 @@ def median(numbers):
     return (sorted(numbers)[int(round((len(numbers) - 1) / 2.0))] + sorted(numbers)[int(round((len(numbers) - 1) // 2.0))]) / 2.0
 
 
-def read_config(path_to_config=None):
+def read_config(default_config, path_to_config=None):
     if path_to_config:
         with open(path_to_config, 'r') as f:
             data = json.load(f)
@@ -35,14 +35,14 @@ def read_config(path_to_config=None):
         ts_path = data.get('TS_PATH', None)
         logger_path_conf = data.get('LOGGER_PATH', None)
         result_config = {
-            "REPORT_SIZE": size_report if size_report else config['REPORT_SIZE'],
-            "REPORT_DIR": report_dir if report_dir else config['REPORT_DIR'],
-            "LOG_DIR": log_dir if log_dir else config['LOG_DIR'],
-            "TS_PATH": ts_path if ts_path else config['TS_PATH'],
+            "REPORT_SIZE": size_report if size_report else default_config['REPORT_SIZE'],
+            "REPORT_DIR": report_dir if report_dir else default_config['REPORT_DIR'],
+            "LOG_DIR": log_dir if log_dir else default_config['LOG_DIR'],
+            "TS_PATH": ts_path if ts_path else default_config['TS_PATH'],
             "LOGGER_PATH": logger_path_conf
         }
     else:
-        result_config = config
+        result_config = default_config
     return result_config
 
 
@@ -60,9 +60,10 @@ def find_last_log(path_logs):
                     this_date = datetime.strptime(log_date, '%Y%m%d')
                     filename_log = 'nginx-access-ui.log-{}{}'.format(log_date, type_file)
                     date_list.append((this_date, filename_log))
-        max_log = max(date_list, key=lambda x: x[0])
-        logging.info(msg='Max date config {}, nginx log filename: {}'.format(max_log[0], max_log[1]))
-        return max_log[0], max_log[1]
+        if date_list:
+            max_log = max(date_list, key=lambda x: x[0])
+            logging.info(msg='Max date config {}, nginx log filename: {}'.format(max_log[0], max_log[1]))
+            return max_log[0], max_log[1]
     except OSError as ex:
         logging.exception(str(ex))
 
@@ -141,36 +142,38 @@ def log_statistic(list_of_lines, count_size_report=1000):
 
 # def main(size_report, report_dir, log_dir, ts_path):
 def main(dict_of_conf):
-    day_last_log, filename = find_last_log(dict_of_conf['LOG_DIR'])
-    if not find_report_by_day(dict_of_conf['REPORT_DIR'], day_last_log):
-        now_time = time()
+    last_log = find_last_log(dict_of_conf['LOG_DIR'])
+    if last_log:
+        day_last_log, filename = last_log
+        if not find_report_by_day(dict_of_conf['REPORT_DIR'], day_last_log):
+            now_time = time()
 
-        my_list = open_logs(filename=dict_of_conf['LOG_DIR'] + filename)
-        sorted_dict_urls = group_by_url(my_list)
-        table_json = log_statistic(sorted_dict_urls, count_size_report=dict_of_conf['REPORT_SIZE'])
+            my_list = open_logs(filename=dict_of_conf['LOG_DIR'] + filename)
+            sorted_dict_urls = group_by_url(my_list)
+            table_json = log_statistic(sorted_dict_urls, count_size_report=dict_of_conf['REPORT_SIZE'])
 
-        logging.info(msg='statistic time: {}'.format((time() - now_time) / 60, 'mins'))
+            logging.info(msg='statistic time: {}'.format((time() - now_time) / 60, 'mins'))
 
-        new_file = Template(open('templates/report.html').read()).safe_substitute(table_json=table_json)
-        try:
-            with open(dict_of_conf['REPORT_DIR'] + 'report_' + day_last_log.strftime("%Y-%m-%d") + '.html', 'w') as new_file_report:
-                new_file_report.write(new_file)
-        except OSError as ex:
-            logging.exception(str(ex))
-            return str(ex)
+            new_file = Template(open('templates/report.html').read()).safe_substitute(table_json=table_json)
+            try:
+                with open(dict_of_conf['REPORT_DIR'] + 'report_' + day_last_log.strftime("%Y-%m-%d") + '.html', 'w') as new_file_report:
+                    new_file_report.write(new_file)
+            except OSError as ex:
+                logging.exception(str(ex))
+                return str(ex)
 
-        ts = time()
-        with open(dict_of_conf['TS_PATH'], 'w') as ts_file:
-            ts_file.write(str(ts))
+            ts = time()
+            with open(dict_of_conf['TS_PATH'], 'w') as ts_file:
+                ts_file.write(str(ts))
 
-        logging.info(msg='mtime of ts-file: {}'.format(os.path.getmtime(dict_of_conf['TS_PATH'])))
+            logging.info(msg='mtime of ts-file: {}'.format(os.path.getmtime(dict_of_conf['TS_PATH'])))
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='For custom config')
     parser.add_argument('--config', type=str, help='path to custom config file')
     args = parser.parse_args()
-    dict_of_conf = read_config(args.config)
+    dict_of_conf = read_config(config, args.config)
 
     logging.basicConfig(
         filename=dict_of_conf.get('LOGGER_PATH', None),

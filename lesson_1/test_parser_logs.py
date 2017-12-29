@@ -1,7 +1,9 @@
 import os
 import unittest
+from datetime import datetime
+from mock import MagicMock
 from pprint import pprint
-from log_analyzer import read_config, open_logs, group_by_url, log_statistic
+from log_analyzer import read_config, open_logs, group_by_url, log_statistic, find_last_log
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -36,6 +38,21 @@ SAMPLE_STAT = [
          time_sum=0.133, url='/api/1/photogenic_banners/list/?server_name=WIN7RB4')
 ]
 
+CONFIG = {
+    "REPORT_SIZE": 1000000,
+    "REPORT_DIR": "reports/",
+    "LOG_DIR": "nginx_logs/",
+    "TS_PATH": "log_nalyzer.ts"
+}
+
+NEW_CONFIG = {
+    'REPORT_DIR': 'reports/',
+    'REPORT_SIZE': 1000000,
+    'LOG_DIR': 'nginx_logs/',
+    'TS_PATH': 'log_nalyzer_custom.ts',
+    'LOGGER_PATH': 'log/parse_nginx_logs.log'
+}
+
 
 # class OpenTest(unittest.TestCase):
 #     test_file_path = 'nginx_logs/nginx-access-ui.log-test2'
@@ -46,9 +63,21 @@ SAMPLE_STAT = [
 
 class ParserTest(unittest.TestCase):
     test_file_path = 'nginx_logs/nginx-access-ui.log-test'
+    test_custom_config = 'custome_log.conf'
+
+    def test_open_conf(self):
+        self.result_config = read_config(CONFIG, self.test_custom_config)
+        self.assertDictEqual(self.result_config, NEW_CONFIG)
+
+    def test_find_last_file(self):
+        os.listdir = MagicMock(return_value=['nginx-access-ui.log-20170102',
+                                             'nginx-access-ui.log-20170602.gz',
+                                             'nginx-access-ui.log-20170107'])
+        self.last_log = find_last_log('')
+        self.assertEqual(self.last_log, (datetime(2017, 6, 2, 0, 0), 'nginx-access-ui.log-20170602.gz'))
 
     def test_parse_log(self):
-        self.parsed_data = open_logs(self.test_file_path, 0.0)
+        self.parsed_data = open_logs(self.test_file_path)
         self.assertListEqual(self.parsed_data, LIST_OF_PARSED_DATA)
 
     def test_group_data(self):
