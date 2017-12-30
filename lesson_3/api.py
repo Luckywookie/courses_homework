@@ -87,15 +87,24 @@ class EmailField(CharField):
         if '@' in value:
             BaseField.__set__(self, instance, value)
         else:
-            raise AttributeError('This field must contain @!')
+            raise AttributeError('Email field must contain @!')
 
 
 class PhoneField(CharField):
-    pass
+    def __set__(self, instance, value):
+        if value.startswith('7') and len(value) == 11:
+            BaseField.__set__(self, instance, value)
+        else:
+            raise AttributeError('Phone field must starts with 7 with length 11!')
 
 
 class DateField(CharField):
-    pass
+    def __set__(self, instance, value):
+        # TODO DD.MM.YYYY no more than 70 years
+        if value:
+            BaseField.__set__(self, instance, value)
+        else:
+            raise AttributeError('Date field must starts with 7 with length 11!')
 
 
 class BirthDayField(CharField):
@@ -107,6 +116,12 @@ class GenderField(BaseField):
         BaseField.__init__(self, required, nullable)
         self._type = int
 
+    def __set__(self, instance, value):
+        if value in [0, 1, 2]:
+            BaseField.__set__(self, instance, value)
+        else:
+            raise AttributeError('Gender field must be only 0, 1, 2')
+
 
 class ClientIDsField(BaseField):
     def __init__(self, required=False, nullable=False):
@@ -114,12 +129,27 @@ class ClientIDsField(BaseField):
         self._type = int
 
 
+class Controller(object):
+    def __new__(self, *args, **kwargs):
+        for key, value in self.__dict__.items():
+            if isinstance(value, BaseField):
+                val = kwargs.get(key, None)
+                # print key, value, val
+                if value.required and val is None:
+                    raise Exception('{} attribute is required!'.format(key))
+        return super(Controller, self).__new__(self)
+
+    def __init__(self, **kwargs):
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+
 class ClientsInterestsRequest(object):
     client_ids = ClientIDsField(required=True)
     date = DateField(required=False, nullable=True)
 
 
-class OnlineScoreRequest(object):
+class OnlineScoreRequest(Controller):
     first_name = CharField(required=False, nullable=True)
     last_name = CharField(required=False, nullable=True)
     email = EmailField(required=False, nullable=True)
@@ -127,60 +157,15 @@ class OnlineScoreRequest(object):
     birthday = BirthDayField(required=False, nullable=True)
     gender = GenderField(required=False, nullable=True)
 
-    def __init__(self, first_name, last_name, email, phone, birthday, gender):
-        self.first_name = first_name
-        self.last_name = last_name
-        self.email = email
-        self.phone = phone
-        self.birthday = birthday
-        self.gender = gender
-
-    def view_dict(self):
-        print('view', self.__dict__.items(), dir(self), self.__getattribute__('email'))
-
-    def print_instance_attributes(self):
-        for attribute, value in self.__dict__.items():
-            print(attribute, '=', value)
+    def validate(self):
+        # phone-email, first_name-last_name, birthday-gender
+        if not (self.phone and self.email) and \
+            not (self.first_name and self.last_name) and \
+            not (self.birthday and self.gender):
+            raise Exception('Have not compare pair of data')
 
 
-
-class Controller(object):
-    def __new__(cls, *args, **kwargs):
-        if not hasattr(cls, 'path'):
-            raise NotImplementedError("'Controller' subclasses should have a 'path' attribute")
-        return Controller.__new__(cls, *args, **kwargs)
-
-
-class MyMeta(type):
-    ff = None
-    def __call__(meta, name, bases, dct):
-        newclass = super(MyMeta, meta).__new__(meta, name, bases, {})
-        for key, value in dct.items():
-            if not hasattr(meta, key) and key != '__metaclass__':
-                try:
-                    if value.required:
-                        setattr(newclass, key, value)
-                except:
-                    pass
-        from pprint import pprint
-        pprint(newclass.__dict__)
-        return newclass
-
-    def __init__(cls, name, bases, dct):
-        # print cls
-        # print dct
-        for key, value in dct.items():
-            if not hasattr(cls, key) and key not in ['__metaclass__', 'is_admin']:
-                try:
-                    if value.required:
-                        setattr(cls, key, value)
-                except:
-                    pass
-        super(MyMeta, cls).__init__(name, bases, dct)
-
-
-class MethodRequest(object):
-    __metaclass__ = MyMeta
+class MethodRequest(Controller):
 
     account = CharField(required=False, nullable=True)
     login = CharField(required=True, nullable=True)
@@ -188,12 +173,18 @@ class MethodRequest(object):
     arguments = ArgumentsField(required=True, nullable=True)
     method = CharField(required=True, nullable=False)
 
-    def __init__(self, account, login, token, arguments, method):
-        self.account = account
-        self.login = login
-        self.token = token
-        self.arguments = arguments
-        self.method = method
+    # def __new__(self, *args, **kwargs):
+    #     for key, value in self.__dict__.items():
+    #         if isinstance(value, BaseField):
+    #             val = kwargs.get(key, None)
+    #             # print key, value, val
+    #             if value.required and val is None:
+    #                 raise Exception('{} attribute is required!'.format(key))
+    #     return super(MethodRequest, self).__new__(self)
+
+    # def __init__(self, **kwargs):
+    #     for key, value in kwargs.items():
+    #         setattr(self, key, value)
 
     @property
     def is_admin(self):
@@ -216,13 +207,10 @@ def method_handler(request, ctx, store):
     request = request['body']
     if request.method == 'online_score' and request.login != 'admin':
         data = request.arguments
+        dict_data = data._asdict()
         try:
-            obj = OnlineScoreRequest(phone=data.phone,
-                                     email=data.email,
-                                     birthday=data.birthday,
-                                     gender=data.gender,
-                                     first_name=data.first_name,
-                                     last_name=data.last_name)
+            obj = OnlineScoreRequest(**dict_data)
+            obj.validate()
             response = get_score(store, obj.phone, obj.email, obj.birthday, obj.gender, obj.first_name, obj.last_name)
             code = OK
         except Exception as ex:
@@ -295,7 +283,8 @@ if __name__ == "__main__":
     # new_req.view_dict()
     # new_req.print_instance_attributes()
     # print(MethodRequest.cls_attr())
-    niq_req = MethodRequest('admin22', 'admin', '', {}, 'ff')
+    niq_req = MethodRequest(**{'account': 'admin22', 'login':'admin', 'token': '', 'arguments': {}, 'method': 'ff'})
+    # niq_req_2 = MethodRequest(**{'account': 'admin22', 'login':'admin', 'arguments': {}, 'method': 'ff'})
 
     op = OptionParser()
     op.add_option("-p", "--port", action="store", type=int, default=7080)
