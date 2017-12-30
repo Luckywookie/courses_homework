@@ -80,12 +80,12 @@ class ArgumentsField(BaseField):
 
 class EmailField(CharField):
     def __init__(self, required=False, nullable=False):
-        BaseField.__init__(self, required, nullable)
+        CharField.__init__(self, required, nullable)
         self._type = (str, unicode)
 
     def __set__(self, instance, value):
         if '@' in value:
-            BaseField.__set__(self, instance, value)
+            CharField.__set__(self, instance, value)
         else:
             raise AttributeError('Email field must contain @!')
 
@@ -93,22 +93,32 @@ class EmailField(CharField):
 class PhoneField(CharField):
     def __set__(self, instance, value):
         if value.startswith('7') and len(value) == 11:
-            BaseField.__set__(self, instance, value)
+            CharField.__set__(self, instance, value)
         else:
             raise AttributeError('Phone field must starts with 7 with length 11!')
 
 
 class DateField(CharField):
-    pass
-
-
-class BirthDayField(DateField):
     def __set__(self, instance, value):
-        # TODO DD.MM.YYYY no more than 70 years
-        if value:
-            BaseField.__set__(self, instance, value)
+        try:
+            datetime.datetime.strptime(value, '%d.%m.%Y')
+        except Exception as ex:
+            raise AttributeError('Birthday date field must be in format DD.MM.YYYY, error: {}'.format(str(ex)))
+        CharField.__set__(self, instance, value)
+
+
+class BirthDayField(CharField):
+    def __set__(self, instance, value):
+        try:
+            date_now = datetime.datetime.utcnow()
+            birth_date = datetime.datetime.strptime(value, '%d.%m.%Y')
+            diff_years = (date_now - birth_date).days / 365
+        except Exception as ex:
+            raise AttributeError('Birthday date field must be in format DD.MM.YYYY, error: {}'.format(str(ex)))
+        if diff_years < 70:
+            CharField.__set__(self, instance, value)
         else:
-            raise AttributeError('Date field must be in format DD.MM.YYYY and no more than 70 years!')
+            raise AttributeError('Birthday date must be no more than 70 years ago!')
 
 
 class GenderField(BaseField):
@@ -126,7 +136,7 @@ class GenderField(BaseField):
 class ClientIDsField(BaseField):
     def __init__(self, required=False, nullable=False):
         BaseField.__init__(self, required, nullable)
-        self._type = int
+        self._type = list
 
 
 class Controller(object):
@@ -145,7 +155,7 @@ class Controller(object):
 
 
 class ClientsInterestsRequest(Controller):
-    client_ids = ClientIDsField(required=True)
+    client_ids = ClientIDsField(required=True, nullable=False)
     date = DateField(required=False, nullable=True)
 
 
@@ -184,6 +194,9 @@ class RequestAPI(object):
         for key, value in kwargs.items():
             setattr(self, key, value)
 
+    # def __getitem__(self, item):
+    #     return self.__dict__[item]
+
 
 def check_auth(request):
     if request.login == ADMIN_LOGIN:
@@ -199,7 +212,7 @@ def check_auth(request):
 def method_handler(request, ctx, store):
     response, code = None, None
     request = request['body']
-    request_user = MethodRequest(**request.__dict__)
+    request_user = MethodRequest(**vars(request))
     if request.method == 'online_score' and not request_user.is_admin:
         data = request.arguments
         try:
@@ -214,7 +227,11 @@ def method_handler(request, ctx, store):
         response = {"score": 42}
         code = OK
     elif request.method == 'clients_interests':
-        response = get_interests(store, None)
+        clients = ClientsInterestsRequest(**request.arguments)
+        response = {}
+        for client in clients.client_ids:
+            client_response = get_interests(store, client)
+            response.update([(str(client), client_response)])
         code = OK
 
     return response, code
@@ -280,7 +297,7 @@ if __name__ == "__main__":
     # print(MethodRequest.cls_attr())
     niq_req = MethodRequest(**{'account': 'admin22', 'login':'admin', 'token': '', 'arguments': {}, 'method': 'ff'})
     # niq_req_2 = MethodRequest(**{'account': 'admin22', 'login':'admin', 'arguments': {}, 'method': 'ff'})
-
+    f = dict
     op = OptionParser()
     op.add_option("-p", "--port", action="store", type=int, default=7080)
     op.add_option("-l", "--log", action="store", default=None)
