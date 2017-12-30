@@ -99,16 +99,16 @@ class PhoneField(CharField):
 
 
 class DateField(CharField):
+    pass
+
+
+class BirthDayField(DateField):
     def __set__(self, instance, value):
         # TODO DD.MM.YYYY no more than 70 years
         if value:
             BaseField.__set__(self, instance, value)
         else:
-            raise AttributeError('Date field must starts with 7 with length 11!')
-
-
-class BirthDayField(CharField):
-    pass
+            raise AttributeError('Date field must be in format DD.MM.YYYY and no more than 70 years!')
 
 
 class GenderField(BaseField):
@@ -144,7 +144,7 @@ class Controller(object):
             setattr(self, key, value)
 
 
-class ClientsInterestsRequest(object):
+class ClientsInterestsRequest(Controller):
     client_ids = ClientIDsField(required=True)
     date = DateField(required=False, nullable=True)
 
@@ -159,6 +159,7 @@ class OnlineScoreRequest(Controller):
 
     def validate(self):
         # phone-email, first_name-last_name, birthday-gender
+        # print not (self.phone and self.email)
         if not (self.phone and self.email) and \
             not (self.first_name and self.last_name) and \
             not (self.birthday and self.gender):
@@ -178,6 +179,12 @@ class MethodRequest(Controller):
         return self.login == ADMIN_LOGIN
 
 
+class RequestAPI(object):
+    def __init__(self, **kwargs):
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+
 def check_auth(request):
     if request.login == ADMIN_LOGIN:
         digest = hashlib.sha512(datetime.datetime.now().strftime("%Y%m%d%H") + ADMIN_SALT).hexdigest()
@@ -192,11 +199,11 @@ def check_auth(request):
 def method_handler(request, ctx, store):
     response, code = None, None
     request = request['body']
-    if request.method == 'online_score' and request.login != 'admin':
+    request_user = MethodRequest(**request.__dict__)
+    if request.method == 'online_score' and not request_user.is_admin:
         data = request.arguments
-        dict_data = data._asdict()
         try:
-            obj = OnlineScoreRequest(**dict_data)
+            obj = OnlineScoreRequest(**data)
             obj.validate()
             response = get_score(store, obj.phone, obj.email, obj.birthday, obj.gender, obj.first_name, obj.last_name)
             code = OK
@@ -230,9 +237,11 @@ class MainHTTPHandler(BaseHTTPRequestHandler):
         context = {"request_id": self.get_request_id(self.headers)}
         request = None
         try:
-            from collections import namedtuple
+            # from collections import namedtuple
             data_string = self.rfile.read(int(self.headers['Content-Length']))
-            request = json.loads(data_string, object_hook=lambda d: namedtuple('X', d.keys())(*d.values()))
+            # request = json.loads(data_string, object_hook=lambda d: namedtuple('X', d.keys())(*d.values()))
+            dict_data = json.loads(data_string)
+            request = RequestAPI(**dict_data)
         except:
             code = BAD_REQUEST
         if request:
