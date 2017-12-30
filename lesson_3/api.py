@@ -54,7 +54,6 @@ class BaseField(object):
     def __set__(self, instance, value):
         # print('set', self, instance, value)
         if instance and isinstance(value, self._type):
-            # setattr(instance, self.name, value)
             if not self.nullable and not value:
                 raise AttributeError('This value must be not null!')
             self.name = value
@@ -73,7 +72,6 @@ class CharField(BaseField):
 
 class ArgumentsField(BaseField):
     def __init__(self, required, nullable):
-        # super(BaseField, self).__init__()
         BaseField.__init__(self, required, nullable)
         self._type = dict
 
@@ -233,7 +231,6 @@ def method_handler(request, ctx, store):
             client_response = get_interests(store, client)
             response.update([(str(client), client_response)])
         code = OK
-
     return response, code
 
 
@@ -254,7 +251,6 @@ class MainHTTPHandler(BaseHTTPRequestHandler):
         context = {"request_id": self.get_request_id(self.headers)}
         request = None
         try:
-            # from collections import namedtuple
             data_string = self.rfile.read(int(self.headers['Content-Length']))
             # request = json.loads(data_string, object_hook=lambda d: namedtuple('X', d.keys())(*d.values()))
             dict_data = json.loads(data_string)
@@ -267,7 +263,6 @@ class MainHTTPHandler(BaseHTTPRequestHandler):
             if path in self.router:
                 if check_auth(request):
                     try:
-                        # print(context, self.store)
                         response, code = self.router[path]({"body": request, "headers": self.headers}, context, self.store)
                     except Exception, e:
                         logging.exception("Unexpected error: %s" % e)
@@ -290,16 +285,8 @@ class MainHTTPHandler(BaseHTTPRequestHandler):
         return
 
 if __name__ == "__main__":
-    # new_req = OnlineScoreRequest('olga', 'bel', 'fff@ddd', '445', '12/12/12', 'f')
-    # print(new_req.email)
-    # new_req.view_dict()
-    # new_req.print_instance_attributes()
-    # print(MethodRequest.cls_attr())
-    niq_req = MethodRequest(**{'account': 'admin22', 'login':'admin', 'token': '', 'arguments': {}, 'method': 'ff'})
-    # niq_req_2 = MethodRequest(**{'account': 'admin22', 'login':'admin', 'arguments': {}, 'method': 'ff'})
-    f = dict
     op = OptionParser()
-    op.add_option("-p", "--port", action="store", type=int, default=7080)
+    op.add_option("-p", "--port", action="store", type=int, default=8080)
     op.add_option("-l", "--log", action="store", default=None)
     (opts, args) = op.parse_args()
     logging.basicConfig(filename=opts.log, level=logging.INFO,
