@@ -173,19 +173,6 @@ class MethodRequest(Controller):
     arguments = ArgumentsField(required=True, nullable=True)
     method = CharField(required=True, nullable=False)
 
-    # def __new__(self, *args, **kwargs):
-    #     for key, value in self.__dict__.items():
-    #         if isinstance(value, BaseField):
-    #             val = kwargs.get(key, None)
-    #             # print key, value, val
-    #             if value.required and val is None:
-    #                 raise Exception('{} attribute is required!'.format(key))
-    #     return super(MethodRequest, self).__new__(self)
-
-    # def __init__(self, **kwargs):
-    #     for key, value in kwargs.items():
-    #         setattr(self, key, value)
-
     @property
     def is_admin(self):
         return self.login == ADMIN_LOGIN
@@ -248,14 +235,13 @@ class MainHTTPHandler(BaseHTTPRequestHandler):
             request = json.loads(data_string, object_hook=lambda d: namedtuple('X', d.keys())(*d.values()))
         except:
             code = BAD_REQUEST
-        print(request)
         if request:
             path = self.path.strip("/")
             logging.info("%s: %s %s" % (self.path, data_string, context["request_id"]))
             if path in self.router:
                 if check_auth(request):
                     try:
-                        print(context, self.store)
+                        # print(context, self.store)
                         response, code = self.router[path]({"body": request, "headers": self.headers}, context, self.store)
                     except Exception, e:
                         logging.exception("Unexpected error: %s" % e)
