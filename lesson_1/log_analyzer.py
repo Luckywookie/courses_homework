@@ -14,10 +14,11 @@ from string import Template
 from datetime import datetime
 
 config = {
-    "REPORT_SIZE": 1000000,
-    "REPORT_DIR": "reports/",
-    "LOG_DIR": "nginx_logs/",
-    "TS_PATH": "log_nalyzer.ts"
+    u"REPORT_SIZE": 1000000,
+    u"REPORT_DIR": u"reports/",
+    u"LOG_DIR": u"nginx_logs/",
+    u"SUCCESS_LEVEL_PARSE": 0.66,
+    u"TS_PATH": u"log_nalyzer.ts"
 }
 
 
@@ -25,25 +26,12 @@ def median(numbers):
     return (sorted(numbers)[int(round((len(numbers) - 1) / 2.0))] + sorted(numbers)[int(round((len(numbers) - 1) // 2.0))]) / 2.0
 
 
-def read_config(default_config, path_to_config=None):
+def read_config(config, path_to_config=None):
     if path_to_config:
         with open(path_to_config, 'r') as f:
-            data = json.load(f)
-        size_report = data.get('REPORT_SIZE', None)
-        report_dir = data.get('REPORT_DIR', None)
-        log_dir = data.get('LOG_DIR', None)
-        ts_path = data.get('TS_PATH', None)
-        logger_path_config = data.get('LOGGER_PATH', None)
-        result_config = {
-            "REPORT_SIZE": size_report if size_report else default_config['REPORT_SIZE'],
-            "REPORT_DIR": report_dir if report_dir else default_config['REPORT_DIR'],
-            "LOG_DIR": log_dir if log_dir else default_config['LOG_DIR'],
-            "TS_PATH": ts_path if ts_path else default_config['TS_PATH'],
-            "LOGGER_PATH": logger_path_config
-        }
-    else:
-        result_config = default_config
-    return result_config
+            custom_dict = json.load(f)
+        config.update(custom_dict)
+        return config
 
 
 def find_last_log(path_logs):
@@ -71,7 +59,7 @@ def find_report_by_day(path_reports, log_day):
     return os.path.exists(path_reports + '/report_{day}.html'.format(day=log_day.strftime("%Y-%m-%d")))
 
 
-def parse_logs(log_file):
+def parse_logs(log_file, parse_level):
     pattern_log = re.compile(
         '(?:.+) \[(?:.+)\] "(?:.+) (?P<url>.+) HTTP/\d.\d".+(?P<time_req>\d+\.\d+)')
     lines = []
@@ -90,21 +78,21 @@ def parse_logs(log_file):
             except Exception as ex:
                 logging.exception('Cannot parse this line {} with error: {}'.format(line, ex))
     # print float(count_success) / all_count
-    if float(count_success) / all_count < 0.66:
+    if float(count_success) / all_count < parse_level:
         logging.exception('Less 66% success parsed lines')
         raise Exception('Less 66% success parsed lines')
     logging.info(msg='Len of list parsed urls: {}'.format(len(lines)))
     return lines
 
 
-def open_logs(filename=''):
+def open_logs(filename, parse_level):
     if filename.endswith(".gz"):
         opener = gzip.open
     else:
         opener = open
     # TODO think about encoding
     with opener(filename, 'r') as log_file:
-        parsed_list = parse_logs(log_file)
+        parsed_list = parse_logs(log_file, parse_level)
     return parsed_list
 
 
@@ -148,7 +136,7 @@ def main(dict_of_config):
         if not find_report_by_day(dict_of_config['REPORT_DIR'], day_last_log):
             now_time = time()
 
-            my_list = open_logs(filename=os.path.join(dict_of_config['LOG_DIR'], filename))
+            my_list = open_logs(filename=os.path.join(dict_of_config['LOG_DIR'], filename), parse_level=dict_of_config['REPORT_DIR'])
             sorted_dict_urls = group_by_url(my_list)
             table_json = log_statistic(sorted_dict_urls, count_size_report=dict_of_config['REPORT_SIZE'])
 
