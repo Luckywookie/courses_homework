@@ -31,7 +31,7 @@ def read_config(config, path_to_config=None):
         with open(path_to_config, 'r') as f:
             custom_dict = json.load(f)
         config.update(custom_dict)
-        return config
+    return config
 
 
 def find_last_log(path_logs):
@@ -77,7 +77,7 @@ def parse_logs(log_file, parse_level):
                 count_success += 1
             except Exception as ex:
                 logging.exception('Cannot parse this line {} with error: {}'.format(line, ex))
-    # print float(count_success) / all_count
+    # print float(count_success) / all_count, parse_level
     if float(count_success) / all_count < parse_level:
         logging.exception('Less 66% success parsed lines')
         raise Exception('Less 66% success parsed lines')
@@ -136,7 +136,8 @@ def main(dict_of_config):
         if not find_report_by_day(dict_of_config['REPORT_DIR'], day_last_log):
             now_time = time()
 
-            my_list = open_logs(filename=os.path.join(dict_of_config['LOG_DIR'], filename), parse_level=dict_of_config['REPORT_DIR'])
+            my_list = open_logs(filename=os.path.join(dict_of_config['LOG_DIR'], filename),
+                                parse_level=dict_of_config['SUCCESS_LEVEL_PARSE'])
             sorted_dict_urls = group_by_url(my_list)
             table_json = log_statistic(sorted_dict_urls, count_size_report=dict_of_config['REPORT_SIZE'])
 
