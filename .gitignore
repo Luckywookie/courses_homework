@@ -20,3 +20,6 @@ Thumbs.db
 venv
 node_modules
 .sass-cache
+
+#Nginx logs
+lesson_1/nginx_logs/
