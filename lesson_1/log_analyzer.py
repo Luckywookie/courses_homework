@@ -33,13 +33,13 @@ def read_config(default_config, path_to_config=None):
         report_dir = data.get('REPORT_DIR', None)
         log_dir = data.get('LOG_DIR', None)
         ts_path = data.get('TS_PATH', None)
-        logger_path_conf = data.get('LOGGER_PATH', None)
+        logger_path_config = data.get('LOGGER_PATH', None)
         result_config = {
             "REPORT_SIZE": size_report if size_report else default_config['REPORT_SIZE'],
             "REPORT_DIR": report_dir if report_dir else default_config['REPORT_DIR'],
             "LOG_DIR": log_dir if log_dir else default_config['LOG_DIR'],
             "TS_PATH": ts_path if ts_path else default_config['TS_PATH'],
-            "LOGGER_PATH": logger_path_conf
+            "LOGGER_PATH": logger_path_config
         }
     else:
         result_config = default_config
@@ -47,7 +47,7 @@ def read_config(default_config, path_to_config=None):
 
 
 def find_last_log(path_logs):
-    pattern_log_name = re.compile(r"nginx-access-ui\.log-(?P<log_date>\d{8})(?P<type_file>.*)")
+    pattern_log_name = re.compile(r"nginx-access-ui\.log-(?P<log_date>\d{8})(?P<type_file>$|.gz)")
     date_list = []
     try:
         for file_item in os.listdir(path_logs):
@@ -56,10 +56,9 @@ def find_last_log(path_logs):
                 datadict = find_files.groupdict()
                 log_date = datadict["log_date"]
                 type_file = datadict["type_file"]
-                if type_file in ['', '.gz']:
-                    this_date = datetime.strptime(log_date, '%Y%m%d')
-                    filename_log = 'nginx-access-ui.log-{}{}'.format(log_date, type_file)
-                    date_list.append((this_date, filename_log))
+                this_date = datetime.strptime(log_date, '%Y%m%d')
+                filename_log = 'nginx-access-ui.log-{}{}'.format(log_date, type_file)
+                date_list.append((this_date, filename_log))
         if date_list:
             max_log = max(date_list, key=lambda x: x[0])
             logging.info(msg='Max date config {}, nginx log filename: {}'.format(max_log[0], max_log[1]))
@@ -103,6 +102,7 @@ def open_logs(filename=''):
         opener = gzip.open
     else:
         opener = open
+    # TODO think about encoding
     with opener(filename, 'r') as log_file:
         parsed_list = parse_logs(log_file)
     return parsed_list
@@ -141,48 +141,59 @@ def log_statistic(list_of_lines, count_size_report=1000):
 
 
 # def main(size_report, report_dir, log_dir, ts_path):
-def main(dict_of_conf):
-    last_log = find_last_log(dict_of_conf['LOG_DIR'])
+def main(dict_of_config):
+    last_log = find_last_log(dict_of_config['LOG_DIR'])
     if last_log:
         day_last_log, filename = last_log
-        if not find_report_by_day(dict_of_conf['REPORT_DIR'], day_last_log):
+        if not find_report_by_day(dict_of_config['REPORT_DIR'], day_last_log):
             now_time = time()
 
-            my_list = open_logs(filename=dict_of_conf['LOG_DIR'] + filename)
+            my_list = open_logs(filename=os.path.join(dict_of_config['LOG_DIR'], filename))
             sorted_dict_urls = group_by_url(my_list)
-            table_json = log_statistic(sorted_dict_urls, count_size_report=dict_of_conf['REPORT_SIZE'])
+            table_json = log_statistic(sorted_dict_urls, count_size_report=dict_of_config['REPORT_SIZE'])
 
             logging.info(msg='statistic time: {}'.format((time() - now_time) / 60, 'mins'))
 
             new_file = Template(open('templates/report.html').read()).safe_substitute(table_json=table_json)
+
+            if not os.path.exists(dict_of_config['REPORT_DIR']):
+                logging.info(msg='Create folder: {} for reports'.format(dict_of_config['REPORT_DIR']))
+                os.mkdir(dict_of_config['REPORT_DIR'])
+
             try:
-                with open(dict_of_conf['REPORT_DIR'] + 'report_' + day_last_log.strftime("%Y-%m-%d") + '.html', 'w') as new_file_report:
+                with open(dict_of_config['REPORT_DIR'] + 'report_' + day_last_log.strftime("%Y-%m-%d") + '.html', 'w') as new_file_report:
                     new_file_report.write(new_file)
             except OSError as ex:
                 logging.exception(str(ex))
                 return str(ex)
 
             ts = time()
-            with open(dict_of_conf['TS_PATH'], 'w') as ts_file:
+            with open(dict_of_config['TS_PATH'], 'w') as ts_file:
                 ts_file.write(str(ts))
 
-            logging.info(msg='mtime of ts-file: {}'.format(os.path.getmtime(dict_of_conf['TS_PATH'])))
+            logging.info(msg='mtime of ts-file: {}'.format(os.path.getmtime(dict_of_config['TS_PATH'])))
+        else:
+            logging.info(msg='Report for log {} already exist'.format(last_log))
+
+            ts = time()
+            with open(dict_of_config['TS_PATH'], 'w') as ts_file:
+                ts_file.write(str(ts))
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='For custom config')
     parser.add_argument('--config', type=str, help='path to custom config file')
     args = parser.parse_args()
-    dict_of_conf = read_config(config, args.config)
+    dict_of_config = read_config(config, args.config)
 
     logging.basicConfig(
-        filename=dict_of_conf.get('LOGGER_PATH', None),
+        filename=dict_of_config.get('LOGGER_PATH', None),
         format='[%(asctime)s] %(levelname).1s %(message)s',
         datefmt='%H:%M:%S %d-%b-%Y',
         level=logging.DEBUG
     )
 
     try:
-        main(dict_of_conf)
+        main(dict_of_config)
     except Exception as ex:
         logging.exception(str(ex))
