@@ -91,7 +91,6 @@ def open_logs(filename, parse_level):
         opener = gzip.open
     else:
         opener = open
-    # TODO think about encoding
     with opener(filename, 'r') as log_file:
         import codecs
         reader = codecs.getreader("utf-8")
