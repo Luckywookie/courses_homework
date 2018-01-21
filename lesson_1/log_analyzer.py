@@ -36,7 +36,8 @@ def read_config(config, path_to_config=None):
 
 def find_last_log(path_logs):
     pattern_log_name = re.compile(r"nginx-access-ui\.log-(?P<log_date>\d{8})(?P<type_file>$|.gz)")
-    date_list = []
+    max_date = datetime(2000, 1, 1)
+    max_log = ''
     try:
         for file_item in os.listdir(path_logs):
             find_files = pattern_log_name.search(file_item)
@@ -46,13 +47,13 @@ def find_last_log(path_logs):
                 type_file = datadict["type_file"]
                 this_date = datetime.strptime(log_date, '%Y%m%d')
                 filename_log = 'nginx-access-ui.log-{}{}'.format(log_date, type_file)
-                date_list.append((this_date, filename_log))
-        if date_list:
-            max_log = max(date_list, key=lambda x: x[0])
-            logging.info(msg='Max date config {}, nginx log filename: {}'.format(max_log[0], max_log[1]))
-            return max_log[0], max_log[1]
-    except OSError as ex:
-        logging.exception(str(ex))
+                if this_date > max_date:
+                    max_date = this_date
+                    max_log = filename_log
+        logging.info(msg='Max date config {}, nginx log filename: {}'.format(max_date, max_log))
+        return max_date, max_log
+    except OSError:
+        logging.exception('Error in find a max date report')
 
 
 def find_report_by_day(path_reports, log_day):
@@ -76,7 +77,7 @@ def parse_logs(log_file, parse_level):
                 lines.append((url, float(time_req)))
                 count_success += 1
             except Exception as ex:
-                logging.exception('Cannot parse this line {} with error: {}'.format(line, ex))
+                logging.exception('Cannot parse this line {} with error: {}'.format(line, str(ex)))
     # print float(count_success) / all_count, parse_level
     if float(count_success) / all_count < parse_level:
         logging.exception('Less 66% success parsed lines')
@@ -92,7 +93,9 @@ def open_logs(filename, parse_level):
         opener = open
     # TODO think about encoding
     with opener(filename, 'r') as log_file:
-        parsed_list = parse_logs(log_file, parse_level)
+        import codecs
+        reader = codecs.getreader("utf-8")
+        parsed_list = parse_logs(reader(log_file), parse_level)
     return parsed_list
 
 
@@ -153,7 +156,7 @@ def main(dict_of_config):
                 with open(dict_of_config['REPORT_DIR'] + 'report_' + day_last_log.strftime("%Y-%m-%d") + '.html', 'w') as new_file_report:
                     new_file_report.write(new_file)
             except OSError as ex:
-                logging.exception(str(ex))
+                logging.exception('Error in open file config')
                 return str(ex)
 
             ts = time()
@@ -185,4 +188,4 @@ if __name__ == "__main__":
     try:
         main(dict_of_config)
     except Exception as ex:
-        logging.exception(str(ex))
+        logging.exception('Error in main function')
