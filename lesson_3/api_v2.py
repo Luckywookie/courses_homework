@@ -37,114 +37,121 @@ GENDERS = {
 }
 
 
-class BaseField(object):
+class ValidationError(Exception):
+    def __init__(self, msg="Validation error"):
+        super(ValidationError, self).__init__(msg)
+        self.message = msg
+
+
+class BaseMeta(object):
+    __metaclass__ = abc.ABCMeta
+
     def __init__(self, required, nullable):
-        self.name = None
         self.required = required
         self.nullable = nullable
-        self._type = str
 
-    def __get__(self, instance, cls):
-        # print('get', self, instance, cls)
-        if instance:
-            return self.name
-        else:
-            return self
+    def attr_validate(self, value):
+        if self.required and not value:
+            raise ValidationError('This field is required')
+        if not self.nullable and not value:
+            raise ValidationError('This field cannot be empty')
 
-    def __set__(self, instance, value):
-        # print('set', self, instance, value)
-        if instance and isinstance(value, self._type):
-            if not self.nullable and not value:
-                raise AttributeError('This value must be not null!')
-            self.name = value
-        else:
-            raise AttributeError('Wrong type of value!')
+    @abc.abstractmethod
+    def custom_validate(self, value):
+        """ for add custom validations """
+        pass
 
-    def __delete__(self, instance):
-        raise AttributeError("Can't delete attribute")
+    def validate(self, value):
+        self.attr_validate(value)
+        if value:
+            self.custom_validate(value)
 
 
-class CharField(BaseField):
+class CharField(BaseMeta):
     def __init__(self, required, nullable):
-        BaseField.__init__(self, required, nullable)
+        super(CharField, self).__init__(required, nullable)
         self._type = (str, unicode)
 
+    def custom_validate(self, value):
+        if not isinstance(value, self._type):
+            raise ValidationError('Wrong type of value, must be {}'.format(self._type))
 
-class ArgumentsField(BaseField):
+
+class ArgumentsField(BaseMeta):
     def __init__(self, required, nullable):
-        BaseField.__init__(self, required, nullable)
+        super(ArgumentsField, self).__init__(required, nullable)
         self._type = dict
+
+    def custom_validate(self, value):
+        if not isinstance(value, self._type):
+            raise ValidationError('Arguments field must be a dict ')
 
 
 class EmailField(CharField):
     def __init__(self, required=False, nullable=False):
         CharField.__init__(self, required, nullable)
-        self._type = (str, unicode)
 
-    def __set__(self, instance, value):
-        if '@' in value:
-            CharField.__set__(self, instance, value)
-        else:
-            raise AttributeError('Email field must contain @!')
+    def custom_validate(self, value):
+        if '@' not in value:
+            raise ValidationError('Email field must contain @!')
 
 
 class PhoneField(CharField):
-    def __set__(self, instance, value):
-        if value.startswith('7') and len(value) == 11:
-            CharField.__set__(self, instance, value)
-        else:
-            raise AttributeError('Phone field must starts with 7 with length 11!')
+    def custom_validate(self, value):
+        if not value.startswith('7') or len(value) != 11:
+            raise ValidationError('Phone field must starts with 7 with length 11!')
 
 
 class DateField(CharField):
-    def __set__(self, instance, value):
+    def custom_validate(self, value):
         try:
             datetime.datetime.strptime(value, '%d.%m.%Y')
         except Exception as ex:
-            raise AttributeError('Birthday date field must be in format DD.MM.YYYY, error: {}'.format(str(ex)))
-        CharField.__set__(self, instance, value)
+            raise ValidationError('Birthday date field must be in format DD.MM.YYYY, error: {}'.format(str(ex)))
 
 
 class BirthDayField(CharField):
-    def __set__(self, instance, value):
+    def custom_validate(self, value):
         try:
             date_now = datetime.datetime.utcnow()
             birth_date = datetime.datetime.strptime(value, '%d.%m.%Y')
             diff_years = (date_now - birth_date).days / 365
         except Exception as ex:
-            raise AttributeError('Birthday date field must be in format DD.MM.YYYY, error: {}'.format(str(ex)))
-        if diff_years < 70:
-            CharField.__set__(self, instance, value)
-        else:
-            raise AttributeError('Birthday date must be no more than 70 years ago!')
+            raise ValidationError('Birthday date field must be in format DD.MM.YYYY, error: {}'.format(str(ex)))
+        if diff_years >= 70:
+            raise ValidationError('Birthday date must be no more than 70 years ago!')
 
 
-class GenderField(BaseField):
+class GenderField(BaseMeta):
     def __init__(self, required=False, nullable=False):
-        BaseField.__init__(self, required, nullable)
+        super(GenderField, self).__init__(required, nullable)
         self._type = int
 
-    def __set__(self, instance, value):
-        if value in [0, 1, 2]:
-            BaseField.__set__(self, instance, value)
-        else:
+    def custom_validate(self, value):
+        if not isinstance(value, self._type):
+            raise ValidationError()
+        if value not in [0, 1, 2]:
             raise AttributeError('Gender field must be only 0, 1, 2')
 
 
-class ClientIDsField(BaseField):
+class ClientIDsField(BaseMeta):
     def __init__(self, required=False, nullable=False):
-        BaseField.__init__(self, required, nullable)
+        super(ClientIDsField, self).__init__(required, nullable)
         self._type = list
+
+    def custom_validate(self, value):
+        if not isinstance(value, self._type):
+            raise ValidationError('Clients IDs must be list')
 
 
 class Controller(object):
+    __metaclass__ = abc.ABCMeta
+
     def __new__(self, *args, **kwargs):
         for key, value in self.__dict__.items():
-            if isinstance(value, BaseField):
+            if isinstance(value, BaseMeta):
                 val = kwargs.get(key, None)
-                # print key, value, val
-                if value.required and val is None:
-                    raise Exception('{} attribute is required!'.format(key))
+                value.validate(val)
         return super(Controller, self).__new__(self)
 
     def __init__(self, **kwargs):
@@ -171,7 +178,7 @@ class OnlineScoreRequest(Controller):
         if not (self.phone and self.email) and \
             not (self.first_name and self.last_name) and \
             not (self.birthday and self.gender):
-            raise Exception('Have not compare pair of data')
+            raise ValidationError('Have not compare pair of data')
 
 
 class MethodRequest(Controller):
@@ -191,9 +198,6 @@ class RequestAPI(object):
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
             setattr(self, key, value)
-
-    # def __getitem__(self, item):
-    #     return self.__dict__[item]
 
 
 def check_auth(request):
@@ -215,22 +219,26 @@ def method_handler(request, ctx, store):
         data = request.arguments
         try:
             obj = OnlineScoreRequest(**data)
-            obj.validate()
             response = get_score(store, obj.phone, obj.email, obj.birthday, obj.gender, obj.first_name, obj.last_name)
             code = OK
         except Exception as ex:
             response = str(ex)
             code = BAD_REQUEST
-    elif request.method == 'online_score':
+    elif request.method == 'online_score' and request_user.is_admin:
         response = {"score": 42}
         code = OK
     elif request.method == 'clients_interests':
-        clients = ClientsInterestsRequest(**request.arguments)
-        response = {}
-        for client in clients.client_ids:
-            client_response = get_interests(store, client)
-            response.update([(str(client), client_response)])
-        code = OK
+        try:
+            clients = ClientsInterestsRequest(**request.arguments)
+        except ValidationError as ex:
+            response = str(ex)
+            code = BAD_REQUEST
+        else:
+            response = {}
+            for client in clients.client_ids:
+                client_response = get_interests(store, client)
+                response.update([(str(client), client_response)])
+            code = OK
     return response, code
 
 
