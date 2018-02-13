@@ -5,11 +5,12 @@ import os
 import sys
 import gzip
 import json
+import codecs
 import logging
 import argparse
 from time import time
 from pprint import pprint
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 from string import Template
 from datetime import datetime
 
@@ -36,6 +37,7 @@ def read_config(config, path_to_config=None):
 
 def find_last_log(path_logs):
     pattern_log_name = re.compile(r"nginx-access-ui\.log-(?P<log_date>\d{8})(?P<type_file>$|.gz)")
+    LastLog = namedtuple('LastLog', ['date', 'log_file'])
     max_date = datetime(2000, 1, 1)
     max_log = ''
     try:
@@ -51,7 +53,7 @@ def find_last_log(path_logs):
                     max_date = this_date
                     max_log = filename_log
         logging.info(msg='Max date config {}, nginx log filename: {}'.format(max_date, max_log))
-        return max_date, max_log
+        return LastLog(max_date, max_log)
     except OSError:
         logging.exception('Error in find a max date report')
 
@@ -92,7 +94,6 @@ def open_logs(filename, parse_level):
     else:
         opener = open
     with opener(filename, 'r') as log_file:
-        import codecs
         reader = codecs.getreader("utf-8")
         parsed_list = parse_logs(reader(log_file), parse_level)
     return parsed_list
@@ -130,45 +131,47 @@ def log_statistic(list_of_lines, count_size_report=1000):
     return table_list[:count_size_report]
 
 
+def write_report(data, date_report, config):
+    new_file = Template(open('templates/report.html').read()).safe_substitute(table_json=data)
+    if not os.path.exists(config['REPORT_DIR']):
+        logging.info(msg='Create folder: {} for reports'.format(config['REPORT_DIR']))
+        os.mkdir(config['REPORT_DIR'])
+
+    with open(config['REPORT_DIR'] + 'report_' + date_report.strftime("%Y-%m-%d") + '.html', 'w') as new_file_report:
+        new_file_report.write(new_file)
+
+
+def write_ts_file(config):
+    ts = time()
+    with open(config['TS_PATH'], 'w') as ts_file:
+        ts_file.write(str(ts))
+
+
 # def main(size_report, report_dir, log_dir, ts_path):
 def main(dict_of_config):
     last_log = find_last_log(dict_of_config['LOG_DIR'])
-    if last_log:
-        day_last_log, filename = last_log
-        if not find_report_by_day(dict_of_config['REPORT_DIR'], day_last_log):
-            now_time = time()
+    if not last_log:
+        return
+    # day_last_log, filename = last_log
+    if not find_report_by_day(dict_of_config['REPORT_DIR'], last_log.date):
+        now_time = time()
+        my_list = open_logs(filename=os.path.join(dict_of_config['LOG_DIR'], last_log.log_file),
+                            parse_level=dict_of_config['SUCCESS_LEVEL_PARSE'])
+        sorted_dict_urls = group_by_url(my_list)
+        table_json = log_statistic(sorted_dict_urls, count_size_report=dict_of_config['REPORT_SIZE'])
+        logging.info(msg='statistic time: {}'.format((time() - now_time) / 60, 'mins'))
 
-            my_list = open_logs(filename=os.path.join(dict_of_config['LOG_DIR'], filename),
-                                parse_level=dict_of_config['SUCCESS_LEVEL_PARSE'])
-            sorted_dict_urls = group_by_url(my_list)
-            table_json = log_statistic(sorted_dict_urls, count_size_report=dict_of_config['REPORT_SIZE'])
-
-            logging.info(msg='statistic time: {}'.format((time() - now_time) / 60, 'mins'))
-
-            new_file = Template(open('templates/report.html').read()).safe_substitute(table_json=table_json)
-
-            if not os.path.exists(dict_of_config['REPORT_DIR']):
-                logging.info(msg='Create folder: {} for reports'.format(dict_of_config['REPORT_DIR']))
-                os.mkdir(dict_of_config['REPORT_DIR'])
-
-            try:
-                with open(dict_of_config['REPORT_DIR'] + 'report_' + day_last_log.strftime("%Y-%m-%d") + '.html', 'w') as new_file_report:
-                    new_file_report.write(new_file)
-            except OSError as ex:
-                logging.exception('Error in open file config')
-                return str(ex)
-
-            ts = time()
-            with open(dict_of_config['TS_PATH'], 'w') as ts_file:
-                ts_file.write(str(ts))
-
-            logging.info(msg='mtime of ts-file: {}'.format(os.path.getmtime(dict_of_config['TS_PATH'])))
+        try:
+            write_report(table_json, last_log.date, dict_of_config)
+        except OSError as ex:
+            logging.exception('Error in open file config')
+            return str(ex)
         else:
-            logging.info(msg='Report for log {} already exist'.format(last_log))
-
-            ts = time()
-            with open(dict_of_config['TS_PATH'], 'w') as ts_file:
-                ts_file.write(str(ts))
+            write_ts_file(dict_of_config)
+            logging.info(msg='mtime of ts-file: {}'.format(os.path.getmtime(dict_of_config['TS_PATH'])))
+    else:
+        logging.info(msg='Report for log {} already exist'.format(last_log))
+        write_ts_file(dict_of_config)
 
 
 if __name__ == "__main__":
