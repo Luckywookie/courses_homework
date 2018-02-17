@@ -1,0 +1,8 @@
+{% extends 'questions/main.html' %}
+
+{% block content %}
+<p>{{ question.pub_date }}</p>
+<h3>{{ question.title }}</h3>
+<p>{{ question.text }}</p>
+<p>{{ question.tags }}</p>
+{% endblock %}
