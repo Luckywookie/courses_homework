@@ -4,7 +4,7 @@ from __future__ import unicode_literals
 from django.contrib import admin
 
 # Register your models here.
-from .models import User, Question, Answer, Tag
+from .models import Profile, Question, Answer, Tag
 
 
 class DataQuestion(admin.ModelAdmin):
@@ -15,7 +15,7 @@ class DataAnswer(admin.ModelAdmin):
     list_display = ('date', 'author', 'question')
 
 
-admin.site.register(User)
+admin.site.register(Profile)
 admin.site.register(Question, DataQuestion)
 admin.site.register(Answer, DataAnswer)
 admin.site.register(Tag)

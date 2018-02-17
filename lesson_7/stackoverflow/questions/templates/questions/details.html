@@ -4,5 +4,9 @@
 <p>{{ question.pub_date }}</p>
 <h3>{{ question.title }}</h3>
 <p>{{ question.text }}</p>
-<p>{{ question.tags }}</p>
+<p>
+{% for tag in question.tags.all %}
+    <button class="badge badge-info">{{ tag }}</button>
+{% endfor %}
+</p>
 {% endblock %}

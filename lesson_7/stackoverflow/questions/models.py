@@ -1,19 +1,21 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
-
+from django.contrib.auth.models import User
+from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.conf import settings
+from django.dispatch import receiver
+from django.db.models.signals import post_save
 
 
 # Create your models here.
-class User(models.Model):
-    email = models.EmailField(max_length=35)
+class Profile(AbstractUser):
     login = models.CharField(max_length=35)
-    password = models.CharField(max_length=35)
     avatar = models.ImageField()
-    register_date = models.DateTimeField('date registered')
 
-    def __str__(self):
-        return self.login
+    class Meta:
+        app_label = 'questions'
+
 
 
 class Tag(models.Model):
@@ -26,7 +28,7 @@ class Tag(models.Model):
 class Question(models.Model):
     title = models.CharField(max_length=240)
     text = models.TextField(max_length=680)
-    author = models.ForeignKey(User)
+    author = models.ForeignKey(Profile)
     pub_date = models.DateTimeField('date published')
     tags = models.ManyToManyField(Tag)
 
@@ -36,7 +38,7 @@ class Question(models.Model):
 
 class Answer(models.Model):
     text = models.TextField(max_length=680)
-    author = models.ForeignKey(User)
+    author = models.ForeignKey(Profile)
     date = models.DateTimeField('date created')
     is_wright = models.BooleanField(default=False)
     question = models.ForeignKey(Question)
