@@ -18,17 +18,19 @@ def view_login(request):
     form = UserForm(request.POST)
     login = form.data['login']
     password = form.data['password']
+    next = form.data['next']
     user = authenticate(request, username=login, password=password)
     if user is not None:
         login(request, user)
-        return HttpResponseRedirect('/questions')
+        return HttpResponseRedirect(next)
     else:
         error(request, 'Ошибка авторизации')
-        return HttpResponseRedirect('/questions')
+        return HttpResponseRedirect(next)
 
 
 def home(request):
-    return render(request, 'questions/main.html', {'questions': []})
+    form = UserForm()
+    return render(request, 'questions/main.html', {'questions': [], 'form': form})
 
 
 def main(request):
