@@ -16,11 +16,12 @@ class Logout(LogoutView):
 
 def view_login(request):
     form = UserForm(request.POST)
-    login = form.data['login']
+    username = form.data['login']
     password = form.data['password']
     next = form.data['next']
-    user = authenticate(request, username=login, password=password)
+    user = authenticate(request, username=username, password=password)
     if user is not None:
+        print(user)
         login(request, user)
         return HttpResponseRedirect(next)
     else:
