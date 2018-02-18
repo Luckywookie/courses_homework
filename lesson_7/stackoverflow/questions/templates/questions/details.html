@@ -1,7 +1,9 @@
 {% extends 'questions/main.html' %}
 
+{% load static %}
+
 {% block content %}
-<p>{{ question.pub_date }}</p>
+<p>{{ question.pub_date | date:"d/m/Y H:i" }}</p>
 <h3>{{ question.title }}</h3>
 <p>{{ question.text }}</p>
 <p>
@@ -9,4 +11,21 @@
     <button class="badge badge-info">{{ tag }}</button>
 {% endfor %}
 </p>
+<h4>Ответы</h4><hr>
+{% for answer in answers %}
+    <div class="row">
+        <div class="col-1">
+            {% if answer.is_right %}<img width="30" src="{% static 'images/right.jpg' %}">{% endif %}
+        </div>
+        <div class="col-1">
+            <a href="/user/{{ answer.author.id }}">{{ answer.author }}</a>
+        </div>
+        <div class="col-2">
+            {{ answer.date | date:"d/m/Y H:i" }}
+        </div>
+        <div class="col-8">
+            {{ answer.text }}
+        </div>
+    </div><hr>
+{% endfor %}
 {% endblock %}

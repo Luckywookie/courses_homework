@@ -27,7 +27,7 @@ class Tag(models.Model):
 
 class Question(models.Model):
     title = models.CharField(max_length=240)
-    text = models.TextField(max_length=680)
+    text = models.TextField(max_length=900)
     author = models.ForeignKey(Profile)
     pub_date = models.DateTimeField('date published')
     tags = models.ManyToManyField(Tag)
@@ -37,8 +37,8 @@ class Question(models.Model):
 
 
 class Answer(models.Model):
-    text = models.TextField(max_length=680)
+    text = models.TextField(max_length=900)
     author = models.ForeignKey(Profile)
     date = models.DateTimeField('date created')
-    is_wright = models.BooleanField(default=False)
+    is_right = models.BooleanField(default=False)
     question = models.ForeignKey(Question)
