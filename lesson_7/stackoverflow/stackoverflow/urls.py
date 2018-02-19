@@ -15,7 +15,7 @@ Including another URLconf
 """
 from django.conf.urls import url, include
 from django.contrib import admin
-from questions.views import Logout, home, view_login
+from questions.views import Logout, home, view_login, registration
 from django.contrib.auth.views import LoginView
 
 
@@ -23,7 +23,8 @@ urlpatterns = [
     url(r'^admin/', admin.site.urls),
     url(r'^$', home),
     url(r'^questions/', include('questions.urls', namespace='questions')),
-    url(r'^login/$', LoginView.as_view(template_name='questions/login.html'), name='login'),
+    url(r'^login/$', LoginView.as_view(template_name='login.html'), name='login'),
     url(r'^logout/$', Logout.as_view(), name='logout'),
     url(r'^view_login/$', view_login, name='view_login'),
+    url(r'^registration/$', registration, name='registration'),
 ]

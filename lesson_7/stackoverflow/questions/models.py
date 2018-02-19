@@ -10,8 +10,7 @@ from django.db.models.signals import post_save
 
 # Create your models here.
 class Profile(AbstractUser):
-    login = models.CharField(max_length=35)
-    avatar = models.ImageField()
+    avatar = models.ImageField(upload_to='questions/static/images/avatars', blank=True, null=True)
 
     class Meta:
         app_label = 'questions'

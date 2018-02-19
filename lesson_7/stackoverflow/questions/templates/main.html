@@ -14,7 +14,7 @@
         <header>
         <!-- Fixed navbar -->
             <nav class="navbar navbar-expand-md navbar-dark fixed-top bg-dark">
-            <a class="navbar-brand" href="/questions">Huskel</a>
+            <a class="navbar-brand" href="/">Huskel</a>
             <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
@@ -33,7 +33,7 @@
                 </form>
                 {% if not user.is_authenticated %}
                     <a class="btn btn-outline-info" href="/login">Login</a>
-                    <a class="btn btn-outline-success" href="/register">Register</a>
+                    <a class="btn btn-outline-success" href="/registration">Register</a>
                 {% else %}
                 <span style="color: grey">User: </span><a href="/user/"><h6 style="color: white">{{ user.get_username }}</h6></a>
                 <a class="btn btn-danger btn-sm" href="/logout">Logout</a>
@@ -76,7 +76,8 @@
                         </div><hr>
                     {% endfor %}
                 </div>
-             {% endblock %}
+                {% endblock %}
+                {% block login %}
                 <div class="col-3">
                     {% if not user.is_authenticated %}
                     <h4>Вход</h4>
@@ -88,6 +89,7 @@
                             {{ errors }}
                         {% endfor %}
                     {% endif %}
+
                     <form method="post" action="{% url 'view_login' %}">
                     {% csrf_token %}
                     <table width="200px">
@@ -104,6 +106,7 @@
                     <input type="hidden" name="next" value="{{ request.path }}" />
                     </form>
                     {% endif %}
+                    {% endblock %}
                 </div>
             </div>
     </main>
