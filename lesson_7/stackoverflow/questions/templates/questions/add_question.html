@@ -1,0 +1,15 @@
+{% extends 'main.html' %}
+
+{% load static %}
+
+{% block content %}
+    <h3>Добавьте свой вопрос:</h3>
+    <form method="post" action="/questions/add_question">
+        {% csrf_token %}
+        {% for field in form %}
+            <small>{{ field.label_tag }}</small>
+            <p>{{ field }}</p>
+        {% endfor %}
+        <input type="submit" class="btn btn-success">
+    </form>
+{% endblock %}

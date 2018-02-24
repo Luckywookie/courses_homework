@@ -46,7 +46,9 @@
             {% block content %}
             <div class="row">
                 <div class="col-9">
-                    <h2 class="mt-5">Вопросы</h2><hr>
+                    <h2 class="mt-5">Вопросы</h2>
+                    <a class="btn btn-success" href="add_question">Задать вопрос</a>
+                    <hr>
                     {% for question in questions %}
                         <div class="row">
                             <div class="col-1">
@@ -94,8 +96,8 @@
                     {% csrf_token %}
                     <table width="200px">
                     <tr>
-                        <td>{{ form.login.label_tag }}</td>
-                        <td>{{ form.login }}</td>
+                        <td>{{ form.username.label_tag }}</td>
+                        <td>{{ form.username }}</td>
                     </tr>
                     <tr>
                         <td>{{ form.password.label_tag }}</td>
@@ -113,7 +115,7 @@
 
     <footer class="footer">
       <div class="container">
-        <span class="text-muted">Place sticky footer content here.</span>
+        <span class="text-muted">Huskel production</span>
       </div>
     </footer>
 

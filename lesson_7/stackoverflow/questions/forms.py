@@ -1,5 +1,5 @@
 from django import forms
-from .models import Profile
+from .models import Profile, Question
 from django.contrib.auth.forms import ReadOnlyPasswordHashField, UserCreationForm
 
 
@@ -16,6 +16,16 @@ class UserCreateForm(UserCreationForm):
 
     def __init__(self, *args, **kwargs):
         super(UserCreateForm, self).__init__(*args, **kwargs)
-        print self.fields.items()
+        for field_name, field in self.fields.items():
+            field.widget.attrs['class'] = 'form-control'
+
+
+class QuestionCreateForm(forms.ModelForm):
+    class Meta:
+        model = Question
+        fields = ('title', 'text', 'tags')
+
+    def __init__(self, *args, **kwargs):
+        super(QuestionCreateForm, self).__init__(*args, **kwargs)
         for field_name, field in self.fields.items():
             field.widget.attrs['class'] = 'form-control'

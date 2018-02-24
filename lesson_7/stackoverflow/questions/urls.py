@@ -6,4 +6,5 @@ from . import views
 urlpatterns = [
     url(r'^$', views.main),
     url(r'(?P<question_id>\d+)$', views.detail),
+    url(r'add_question$', views.add_question),
 ]

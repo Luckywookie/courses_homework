@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
-
+from datetime import datetime
 from django.shortcuts import get_object_or_404, get_list_or_404, render, redirect, HttpResponseRedirect
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView, LogoutView
 from .models import Question, Answer
-from .forms import UserForm, UserCreateForm
+from .forms import UserForm, UserCreateForm, QuestionCreateForm
 from django.contrib.messages import error
 
 
@@ -16,7 +16,7 @@ class Logout(LogoutView):
 
 def view_login(request):
     form = UserForm(request.POST)
-    username = form.data['login']
+    username = form.data['username']
     password = form.data['password']
     next = form.data['next']
     user = authenticate(request, username=username, password=password)
@@ -62,3 +62,17 @@ def registration(request):
     else:
         form = UserCreateForm()
     return render(request, 'registration.html', {'form': form})
+
+
+@login_required
+def add_question(request):
+    if request.method == 'POST':
+        form = QuestionCreateForm(request.POST)
+        if form.is_valid():
+            new_question = form.save(commit=False)
+            new_question.pub_date = datetime.now()
+            new_question.author = request.user
+            new_question.save()
+    else:
+        form = QuestionCreateForm()
+    return render(request, 'questions/add_question.html', {'form': form})
