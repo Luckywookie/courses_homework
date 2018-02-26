@@ -73,6 +73,7 @@ def add_question(request):
             new_question.pub_date = datetime.now()
             new_question.author = request.user
             new_question.save()
+            form.save_m2m()
     else:
         form = QuestionCreateForm()
     return render(request, 'questions/add_question.html', {'form': form})

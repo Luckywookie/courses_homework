@@ -35,7 +35,7 @@
                     <a class="btn btn-outline-info" href="/login">Login</a>
                     <a class="btn btn-outline-success" href="/registration">Register</a>
                 {% else %}
-                <span style="color: grey">User: </span><a href="/user/"><h6 style="color: white">{{ user.get_username }}</h6></a>
+                <a href="/user/"><h6 style="color: white">{{ user.get_username }}</h6></a>
                 <a class="btn btn-danger btn-sm" href="/logout">Logout</a>
               {% endif %}
             </div>
@@ -48,37 +48,7 @@
                 <div class="col-9">
                     <h2 class="mt-5">Вопросы</h2>
                     <a class="btn btn-success" href="add_question">Задать вопрос</a>
-                    <hr>
-                    {% for question in questions %}
-                        <div class="row">
-                            <div class="col-1">
-                                <p>22</p>
-                                <p>Votes</p>
-                            </div>
-                            <div class="col-1">
-                                <p>{{ question.ans }}</p>
-                                <p>Answers</p>
-                            </div>
-                            <div class="col-8">
-                                <div class="date">
-                                    {{ question.pub_date | date:"d/m/Y H:i"}}
-                                </div>
-                                <h4><a href="/questions/{{ question.id }}">{{ question.title }}</a></h4>
-                                <p>{{ question.text|stringformat:".300s" }}...</p>
-                                <p>
-                                {% for tag in question.tags.all %}
-                                    <button class="badge badge-info">{{ tag }}</button>
-                                {% endfor %}
-                                </p>
-                            </div>
-                            <div class="col-1">
-                                <p>Author</p>
-                                <a href="user/{{ question.author.id }}">{{ question.author }}</a>
-                            </div>
-                        </div><hr>
-                    {% endfor %}
                 </div>
-                {% endblock %}
                 {% block login %}
                 <div class="col-3">
                     {% if not user.is_authenticated %}
@@ -110,6 +80,40 @@
                     {% endif %}
                     {% endblock %}
                 </div>
+            </div>
+            <div class="row">
+                <div class="col-12">
+                    <hr>
+                    {% for question in questions %}
+                        <div class="row">
+                            <div class="col-1">
+                                <p>22</p>
+                                <p>Votes</p>
+                            </div>
+                            <div class="col-1">
+                                <p>{{ question.ans }}</p>
+                                <p>Answers</p>
+                            </div>
+                            <div class="col-8">
+                                <div class="date">
+                                    {{ question.pub_date | date:"d/m/Y H:i"}}
+                                </div>
+                                <h4><a href="/questions/{{ question.id }}">{{ question.title }}</a></h4>
+                                <p>{{ question.text|stringformat:".300s" }}...</p>
+                                <p>
+                                {% for tag in question.tags.all %}
+                                    <button class="badge badge-info">{{ tag }}</button>
+                                {% endfor %}
+                                </p>
+                            </div>
+                            <div class="col-1">
+                                <p>Author</p>
+                                <a href="user/{{ question.author.id }}">{{ question.author }}</a>
+                            </div>
+                        </div><hr>
+                    {% endfor %}
+                </div>
+                {% endblock %}
             </div>
     </main>
 
