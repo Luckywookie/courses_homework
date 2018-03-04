@@ -4,8 +4,10 @@
 
 {% block content %}
 <p>{{ question.pub_date | date:"d/m/Y H:i" }} Votes: {{ question.rating }}
+    {% if user.is_authenticated %}
     <a href="{{ question.id }}/vote_up">UP</a>
     <a href="{{ question.id }}/vote_down">DOWN</a>
+    {% endif %}
 </p>
 <h3>{{ question.title }}</h3>
 <p>{{ question.text }}</p>
@@ -19,6 +21,7 @@
     <div class="row">
         <div class="col-1">
             {{ answer.rating }}
+            {% if user.is_authenticated %}
             <form method="post" action="vote_answer/{{ question.id }}/{{ answer.id }}/up" >
             {% csrf_token %}
             <input type="submit" value="Up">
@@ -28,8 +31,7 @@
             {% csrf_token %}
             <input type="submit" value="Down">
             </form>
-            <!--<a href="/vote_answer_up/{{ answer.id }}">UP</a>-->
-            <!--<a href="vote_answer_down/{{ question.id }}/{{ answer.id }}/vote_down">DOWN</a>-->
+            {% endif %}
         </div>
         <div class="col-1">
             {% if answer.is_right %}<img width="30" src="{% static 'images/right.jpg' %}">{% endif %}

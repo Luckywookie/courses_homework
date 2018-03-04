@@ -119,7 +119,7 @@ def vote_down(request, question_id):
     return redirect('/questions/' + question_id)
 
 
-# @login_required
+@login_required
 def vote_answer_up(request, question_id, answer_id):
     if request.method == 'POST':
         answer = get_object_or_404(Answer, pk=answer_id)
