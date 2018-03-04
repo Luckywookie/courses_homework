@@ -5,9 +5,10 @@ from django.shortcuts import get_object_or_404, get_list_or_404, render, redirec
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView, LogoutView
-from .models import Question, Answer
-from .forms import UserForm, UserCreateForm, QuestionCreateForm
+from .models import Question, Answer, Tag
+from .forms import UserForm, UserCreateForm, QuestionCreateForm, AnswerCreateForm
 from django.contrib.messages import error
+from django.utils import timezone
 
 
 class Logout(LogoutView):
@@ -46,7 +47,21 @@ def main(request):
 def detail(request, question_id):
     question = get_object_or_404(Question, pk=question_id)
     answers = Answer.objects.filter(question=question).all()
-    return render(request, 'questions/details.html', {'question': question, 'answers': answers})
+    answer_form = AnswerCreateForm()
+    return render(request, 'questions/details.html', {'question': question, 'answers': answers, 'form': answer_form})
+
+
+def add_answer(request, question_id):
+    question = get_object_or_404(Question, pk=question_id)
+    form = AnswerCreateForm(request.POST)
+    if form.is_valid():
+        print('OOK')
+        answer = form.save(commit=False)
+        answer.date = timezone.now()
+        answer.author = request.user
+        answer.question = question
+        answer.save()
+    return redirect('/questions/' + question_id)
 
 
 def registration(request):
@@ -70,10 +85,19 @@ def add_question(request):
         form = QuestionCreateForm(request.POST)
         if form.is_valid():
             new_question = form.save(commit=False)
-            new_question.pub_date = datetime.now()
+            new_question.pub_date = timezone.now()
             new_question.author = request.user
             new_question.save()
-            form.save_m2m()
+            tags = form.data.get('new_tags')
+            list_of_tags = tags.split(',')
+            for word in list_of_tags[:3]:
+                word = word.strip()
+                tag = Tag.objects.get(word=word)
+                if not tag:
+                    tag = Tag(word=word)
+                    tag.save()
+                new_question.tags.add(tag)
+            return redirect('/questions')
     else:
         form = QuestionCreateForm()
     return render(request, 'questions/add_question.html', {'form': form})

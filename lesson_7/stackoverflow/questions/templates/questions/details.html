@@ -28,4 +28,10 @@
         </div>
     </div><hr>
 {% endfor %}
+<p>Ваш ответ:</p>
+<form action="{{ question.id }}/add_answer" method="post">
+    {% csrf_token %}
+    {{ form.text }}<br>
+    <input type="submit" class="btn btn-success" value="Добавить">
+</form>
 {% endblock %}

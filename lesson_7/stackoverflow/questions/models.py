@@ -16,7 +16,6 @@ class Profile(AbstractUser):
         app_label = 'questions'
 
 
-
 class Tag(models.Model):
     word = models.CharField(max_length=35)
 
