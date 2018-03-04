@@ -3,7 +3,10 @@
 {% load static %}
 
 {% block content %}
-<p>{{ question.pub_date | date:"d/m/Y H:i" }}</p>
+<p>{{ question.pub_date | date:"d/m/Y H:i" }} Votes: {{ question.rating }}
+    <a href="{{ question.id }}/vote_up">UP</a>
+    <a href="{{ question.id }}/vote_down">DOWN</a>
+</p>
 <h3>{{ question.title }}</h3>
 <p>{{ question.text }}</p>
 <p>
@@ -15,6 +18,20 @@
 {% for answer in answers %}
     <div class="row">
         <div class="col-1">
+            {{ answer.rating }}
+            <form method="post" action="vote_answer/{{ question.id }}/{{ answer.id }}/up" >
+            {% csrf_token %}
+            <input type="submit" value="Up">
+            </form>
+
+            <form method="post" action="vote_answer/{{ question.id }}/{{ answer.id }}/down" >
+            {% csrf_token %}
+            <input type="submit" value="Down">
+            </form>
+            <!--<a href="/vote_answer_up/{{ answer.id }}">UP</a>-->
+            <!--<a href="vote_answer_down/{{ question.id }}/{{ answer.id }}/vote_down">DOWN</a>-->
+        </div>
+        <div class="col-1">
             {% if answer.is_right %}<img width="30" src="{% static 'images/right.jpg' %}">{% endif %}
         </div>
         <div class="col-1">
@@ -23,7 +40,7 @@
         <div class="col-2">
             {{ answer.date | date:"d/m/Y H:i" }}
         </div>
-        <div class="col-8">
+        <div class="col-7">
             {{ answer.text }}
         </div>
     </div><hr>

@@ -9,6 +9,7 @@ from .models import Question, Answer, Tag
 from .forms import UserForm, UserCreateForm, QuestionCreateForm, AnswerCreateForm
 from django.contrib.messages import error
 from django.utils import timezone
+from django.http.response import HttpResponseBadRequest
 
 
 class Logout(LogoutView):
@@ -55,7 +56,6 @@ def add_answer(request, question_id):
     question = get_object_or_404(Question, pk=question_id)
     form = AnswerCreateForm(request.POST)
     if form.is_valid():
-        print('OOK')
         answer = form.save(commit=False)
         answer.date = timezone.now()
         answer.author = request.user
@@ -101,3 +101,36 @@ def add_question(request):
     else:
         form = QuestionCreateForm()
     return render(request, 'questions/add_question.html', {'form': form})
+
+
+@login_required
+def vote_up(request, question_id):
+    question = get_object_or_404(Question, pk=question_id)
+    question.rating = question.rating + 1
+    question.save()
+    return redirect('/questions/' + question_id)
+
+
+@login_required
+def vote_down(request, question_id):
+    question = get_object_or_404(Question, pk=question_id)
+    question.rating = question.rating - 1
+    question.save()
+    return redirect('/questions/' + question_id)
+
+
+# @login_required
+def vote_answer_up(request, question_id, answer_id):
+    if request.method == 'POST':
+        answer = get_object_or_404(Answer, pk=answer_id)
+        answer.rating = answer.rating + 1
+        answer.save()
+    return redirect('/questions/' + question_id)
+
+
+@login_required
+def vote_answer_down(request, question_id, answer_id):
+    answer = get_object_or_404(Answer, pk=answer_id)
+    answer.rating = answer.rating - 1
+    answer.save()
+    return redirect('/questions/' + question_id)

@@ -29,6 +29,7 @@ class Question(models.Model):
     author = models.ForeignKey(Profile)
     pub_date = models.DateTimeField('date published')
     tags = models.ManyToManyField(Tag)
+    rating = models.IntegerField(default=0)
 
     # def __str__(self):
     #     return self.title, self.author, self.pub_date
@@ -40,3 +41,4 @@ class Answer(models.Model):
     date = models.DateTimeField('date created')
     is_right = models.BooleanField(default=False)
     question = models.ForeignKey(Question)
+    rating = models.IntegerField(default=0)
