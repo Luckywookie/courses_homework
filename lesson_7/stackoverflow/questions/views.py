@@ -104,33 +104,24 @@ def add_question(request):
 
 
 @login_required
-def vote_up(request, question_id):
+def vote_question(request, question_id, param):
+    print(param)
     question = get_object_or_404(Question, pk=question_id)
-    question.rating = question.rating + 1
+    if param == 'up':
+        question.rating = question.rating + 1
+    elif param == 'down':
+        question.rating = question.rating - 1
     question.save()
     return redirect('/questions/' + question_id)
 
 
 @login_required
-def vote_down(request, question_id):
-    question = get_object_or_404(Question, pk=question_id)
-    question.rating = question.rating - 1
-    question.save()
-    return redirect('/questions/' + question_id)
-
-
-@login_required
-def vote_answer_up(request, question_id, answer_id):
+def vote_answer(request, question_id, answer_id, param):
     if request.method == 'POST':
         answer = get_object_or_404(Answer, pk=answer_id)
-        answer.rating = answer.rating + 1
+        if param == 'up':
+            answer.rating = answer.rating + 1
+        elif param == 'down':
+            answer.rating = answer.rating - 1
         answer.save()
-    return redirect('/questions/' + question_id)
-
-
-@login_required
-def vote_answer_down(request, question_id, answer_id):
-    answer = get_object_or_404(Answer, pk=answer_id)
-    answer.rating = answer.rating - 1
-    answer.save()
     return redirect('/questions/' + question_id)

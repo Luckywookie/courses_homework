@@ -5,8 +5,8 @@
 {% block content %}
 <p>{{ question.pub_date | date:"d/m/Y H:i" }} Votes: {{ question.rating }}
     {% if user.is_authenticated %}
-    <a href="{{ question.id }}/vote_up">UP</a>
-    <a href="{{ question.id }}/vote_down">DOWN</a>
+    <a href="{{ question.id }}/vote/up">UP</a>
+    <a href="{{ question.id }}/vote/down">DOWN</a>
     {% endif %}
 </p>
 <h3>{{ question.title }}</h3>
